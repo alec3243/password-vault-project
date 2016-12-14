@@ -1,0 +1,11 @@
+.label {
+	-fx-min-width: 90;
+}
+
+.button {
+	-fx-min-width: 90;
+}
+
+.text-field {
+	-fx-min-width: 130;
+}
