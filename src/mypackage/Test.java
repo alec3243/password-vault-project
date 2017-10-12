@@ -37,6 +37,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
 
 public class Test extends Application {
@@ -135,6 +136,11 @@ public class Test extends Application {
 		}
 
 		Scene scene = new Scene(grid, 300, 275);
+		scene.setOnKeyPressed((event) -> {
+			if (event.getCode() == KeyCode.ENTER) {
+				btn.fire();
+			}
+		});
 		primaryStage.setScene(scene);
 		primaryStage.show();
 	}
@@ -144,15 +150,18 @@ public class Test extends Application {
 		Scene scene = new Scene(new Group());
 		Stage stage = new Stage();
 		stage.setTitle("Credentials");
-		stage.setWidth(300);
+		stage.setWidth(440);
 		stage.setHeight(540);
 
 		final Label header = new Label("Credentials");
 		header.setFont(Font.font("Calibri", FontWeight.BOLD, 20));
-		header.setPadding(new Insets(0, 0, 0, 75));
-
-		table.setEditable(true);
+		header.setPadding(new Insets(0, 0, 0, 145));
 		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		table.setMaxWidth(389);
+		table.setMinWidth(389);
+		table.setEditable(true);
+		// TODO fix coloring for tableview object
+		table.setStyle("-fx-table-cell-border-color:#999999; -fx-background-color:#d9d9d9");
 
 		TableColumn<Account, String> usernameCol = new TableColumn<Account, String>(
 				"Usernames");
@@ -258,34 +267,49 @@ public class Test extends Application {
 		grid.setPadding(new Insets(25, 25, 25, 25));
 
 		Scene scene = new Scene(grid, 450, 200);
-		File f = new File("style.css");
+		final File f = new File("style.css");
 		scene.getStylesheets().clear();
 		scene.getStylesheets().add(
 				"file:///" + f.getAbsolutePath().replace("\\", "/"));
 
-		Button confirmBtn = new Button("Confirm");
+		final Button confirmBtn = new Button("Confirm");
 		grid.add(confirmBtn, 2, 8);
 
-		Button cancelBtn = new Button("Cancel");
+		final Button cancelBtn = new Button("Cancel");
 		grid.add(cancelBtn, 3, 8);
 
-		Label userLabel = new Label("Username:");
+		final Label userLabel = new Label("Username:");
 		grid.add(userLabel, 0, 2);
 
-		TextField usernameField = new TextField();
+		final TextField usernameField = new TextField();
 		grid.add(usernameField, 1, 2);
 
-		Label passwordLabel = new Label("Password:");
+		final Label passwordLabel = new Label("Password:");
 		grid.add(passwordLabel, 0, 6);
 
-		TextField passwordField = new TextField();
+		final TextField passwordField = new TextField();
 		grid.add(passwordField, 1, 6);
 
+		// Split up the invalidInputLabels into 2 because the grid wont allow
+		// the entire message to be visible on a single label
+		final Label invalidInputLabel1 = new Label();
+		final Label invalidInputLabel2 = new Label();
+		final VBox vbox = new VBox();
+		vbox.getChildren().addAll(invalidInputLabel1, invalidInputLabel2);
+		grid.add(vbox, 1, 7);
 		confirmBtn.setOnAction((event) -> {
-			accounts1.add(new Account(usernameField.getText(), passwordField
-					.getText()));
-			data.add(accounts1.get(accounts1.size() - 1));
-			addCredStage.close();
+			if (usernameField.getText().isEmpty()
+					|| passwordField.getText().isEmpty()) {
+				invalidInputLabel1.setText("Please fill out");
+				invalidInputLabel2.setText("both fields.");
+				invalidInputLabel1.setTextFill(Color.FIREBRICK);
+				invalidInputLabel2.setTextFill(Color.FIREBRICK);
+			} else {
+				accounts1.add(new Account(usernameField.getText(),
+						passwordField.getText()));
+				data.add(accounts1.get(accounts1.size() - 1));
+				addCredStage.close();
+			}
 		});
 
 		cancelBtn.setOnAction((event) -> {
