@@ -13,6 +13,8 @@ import javax.crypto.IllegalBlockSizeException;
 
 import org.mindrot.jbcrypt.BCrypt;
 
+import com.vault.account.Account;
+
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
