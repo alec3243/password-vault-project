@@ -1,15 +1,25 @@
 package mypackage;
 
-import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 import org.mindrot.jbcrypt.BCrypt;
 
@@ -40,27 +50,29 @@ import javafx.scene.text.Text;
 import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
 
-public class Test extends Application {
+public class VaultApplication extends Application {
 
-	private ArrayList<Account> accounts1;
+	private ArrayList<Account> accounts;
 	private ObservableList<Account> data;
 	private final Stage addCredStage = new Stage();
 	private final File FILE_DATA = new File("data.dat");
 	private String masterPass;
 	private final TableView<Account> table = new TableView<Account>();
 	private String actualPassword;
+	private PasswordField pwBox;
+	private final String SALT = BCrypt.gensalt();
 
 	// private boolean confirmed;
 
-	public Test() throws CryptoException {
+	public VaultApplication() {
 		actualPassword = "";
 		// confirmed = false;
-		accounts1 = new ArrayList<Account>();
-		data = FXCollections.observableArrayList(accounts1);
+		accounts = new ArrayList<Account>();
+		data = FXCollections.observableArrayList(accounts);
 		masterPass = "";
 	}
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		launch(args);
 	}
 
@@ -83,7 +95,7 @@ public class Test extends Application {
 		TextField passwordField = new TextField();
 		grid.add(passwordField, 1, 2);
 
-		PasswordField pwBox = new PasswordField();
+		pwBox = new PasswordField();
 		grid.add(pwBox, 1, 2);
 
 		Button btn = new Button("Sign in");
@@ -104,10 +116,13 @@ public class Test extends Application {
 		});
 		Text actiontarget = new Text();
 		if (FILE_DATA.exists()) {
-			BufferedReader br = new BufferedReader(new FileReader(FILE_DATA));
 			grid.add(actiontarget, 1, 6);
-			masterPass = br.readLine();
-			br.close();
+			try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(FILE_DATA))) {
+				// TODO HERES WHERE IT READS MASTERPASS AT LOGIN
+				masterPass = ((Byte[]) ois.readObject()).toString();
+			} catch (EOFException e) {
+				e.printStackTrace();
+			}
 			btn.setOnAction((event) -> {
 				if ((masterPass != null) && (!masterPass.isEmpty())) {
 					if (BCrypt.checkpw(pwBox.getText(), masterPass)) {
@@ -163,20 +178,14 @@ public class Test extends Application {
 		// TODO fix coloring for tableview object
 		table.setStyle("-fx-table-cell-border-color:#999999; -fx-background-color:#d9d9d9");
 
-		TableColumn<Account, String> usernameCol = new TableColumn<Account, String>(
-				"Usernames");
-		TableColumn<Account, String> passwordCol = new TableColumn<Account, String>(
-				"Passwords");
+		TableColumn<Account, String> usernameCol = new TableColumn<Account, String>("Usernames");
+		TableColumn<Account, String> passwordCol = new TableColumn<Account, String>("Passwords");
 
-		usernameCol
-				.setCellValueFactory(new PropertyValueFactory<Account, String>(
-						"username"));
-		passwordCol
-				.setCellValueFactory(new PropertyValueFactory<Account, String>(
-						"password"));
+		usernameCol.setCellValueFactory(new PropertyValueFactory<Account, String>("username"));
+		passwordCol.setCellValueFactory(new PropertyValueFactory<Account, String>("password"));
 
 		table.getColumns().addAll(usernameCol, passwordCol);
-		data = FXCollections.observableArrayList(accounts1);
+		data = FXCollections.observableArrayList(accounts);
 		table.setItems(data);
 
 		Button addBtn = new Button("Add");
@@ -190,53 +199,60 @@ public class Test extends Application {
 			// confirmation();
 			if (true) { // TODO Add in a confirmation screen once JavaFX
 						// tableview refresh bug is fixed.
-				Account selectedItem = table.getSelectionModel()
-						.getSelectedItem();
-				accounts1.remove(selectedItem);
+				Account selectedItem = table.getSelectionModel().getSelectedItem();
+				accounts.remove(selectedItem);
 				data.remove(selectedItem);
 				table.setItems(data);
 			}
 			// confirmed = false;
 		});
 
-		table.getSelectionModel().selectedItemProperty()
-				.addListener((obs, oldSelection, newSelection) -> {
-					if (newSelection != null) {
-						delBtn.setDisable(false);
-					}
-				});
+		table.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+			if (newSelection != null) {
+				delBtn.setDisable(false);
+			}
+		});
 
 		usernameCol.setCellFactory(TextFieldTableCell.forTableColumn());
-		usernameCol
-				.setOnEditCommit(new EventHandler<CellEditEvent<Account, String>>() {
-					@Override
-					public void handle(CellEditEvent<Account, String> t) {
-						((Account) t.getTableView().getItems()
-								.get(t.getTablePosition().getRow()))
-								.setUsername(t.getNewValue());
-					}
+		usernameCol.setOnEditCommit(new EventHandler<CellEditEvent<Account, String>>() {
+			@Override
+			public void handle(CellEditEvent<Account, String> t) {
+				((Account) t.getTableView().getItems().get(t.getTablePosition().getRow())).setUsername(t.getNewValue());
+			}
 
-				});
+		});
 
 		passwordCol.setCellFactory(TextFieldTableCell.forTableColumn());
-		passwordCol
-				.setOnEditCommit(new EventHandler<CellEditEvent<Account, String>>() {
-					@Override
-					public void handle(CellEditEvent<Account, String> t) {
-						((Account) t.getTableView().getItems()
-								.get(t.getTablePosition().getRow()))
-								.setPassword((t.getNewValue()));
-					}
+		passwordCol.setOnEditCommit(new EventHandler<CellEditEvent<Account, String>>() {
+			@Override
+			public void handle(CellEditEvent<Account, String> t) {
+				((Account) t.getTableView().getItems().get(t.getTablePosition().getRow()))
+						.setPassword((t.getNewValue()));
+			}
 
-				});
+		});
 
 		Button exitBtn = new Button("Save and Exit");
 		exitBtn.setOnAction((event) -> {
 			try {
-				saveData();
+				saveData(actualPassword);
 				System.exit(0);
-			} catch (IOException | CryptoException e) {
+			} catch (IOException e) {
 				System.out.println("Error saving data: " + e.getMessage());
+			} catch (InvalidKeyException e) {
+				e.printStackTrace();
+			} catch (InvalidAlgorithmParameterException e) {
+				e.printStackTrace();
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+			} catch (NoSuchProviderException e) {
+				e.printStackTrace();
+			} catch (NoSuchPaddingException e) {
+				e.printStackTrace();
+			} catch (IllegalBlockSizeException e) {
+				e.printStackTrace();
+			} catch (BadPaddingException e) {
+				e.printStackTrace();
 			}
 
 		});
@@ -269,8 +285,7 @@ public class Test extends Application {
 		Scene scene = new Scene(grid, 450, 200);
 		final File f = new File("style.css");
 		scene.getStylesheets().clear();
-		scene.getStylesheets().add(
-				"file:///" + f.getAbsolutePath().replace("\\", "/"));
+		scene.getStylesheets().add("file:///" + f.getAbsolutePath().replace("\\", "/"));
 
 		final Button confirmBtn = new Button("Confirm");
 		grid.add(confirmBtn, 2, 8);
@@ -298,16 +313,14 @@ public class Test extends Application {
 		vbox.getChildren().addAll(invalidInputLabel1, invalidInputLabel2);
 		grid.add(vbox, 1, 7);
 		confirmBtn.setOnAction((event) -> {
-			if (usernameField.getText().isEmpty()
-					|| passwordField.getText().isEmpty()) {
+			if (usernameField.getText().isEmpty() || passwordField.getText().isEmpty()) {
 				invalidInputLabel1.setText("Please fill out");
 				invalidInputLabel2.setText("both fields.");
 				invalidInputLabel1.setTextFill(Color.FIREBRICK);
 				invalidInputLabel2.setTextFill(Color.FIREBRICK);
 			} else {
-				accounts1.add(new Account(usernameField.getText(),
-						passwordField.getText()));
-				data.add(accounts1.get(accounts1.size() - 1));
+				accounts.add(new Account(usernameField.getText(), passwordField.getText()));
+				data.add(accounts.get(accounts.size() - 1));
 				addCredStage.close();
 			}
 		});
@@ -320,40 +333,51 @@ public class Test extends Application {
 		addCredStage.show();
 	}
 
-	private void saveData() throws IOException, CryptoException {
-		FileWriter fw = new FileWriter(FILE_DATA);
-		fw.write(masterPass);
-		fw.write("\n");
-		for (Account acc : accounts1) {
-			String username = XOREncryption.encryptDecrypt(acc.getUsername(),
-					actualPassword);
-			String password = XOREncryption.encryptDecrypt(acc.getPassword(),
-					actualPassword);
-			fw.write(username);
-			fw.write(",");
-			fw.write(password);
-			fw.write("\n");
+	private void saveData(String pass)
+			throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, NoSuchAlgorithmException,
+			NoSuchProviderException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+		try (FileOutputStream fos = new FileOutputStream(FILE_DATA);
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();) {
+
+			if (pass != null) {
+				// TODO HERES WHERE THE MASTERPASS GETS SAVED TO FILE 
+				masterPass = BCrypt.hashpw(pass, SALT);
+				baos.write(masterPass.getBytes("UTF-8"));
+			}
+			byte[] encodedUser = null;
+			byte[] encodedPass = null;
+			for (Account acc : accounts) {
+				encodedUser = Base64.getEncoder().encode(AES.encrypt(acc.getUsername(), actualPassword));
+				encodedPass = Base64.getEncoder().encode(AES.encrypt(acc.getPassword(), actualPassword));
+				baos.write(encodedUser);
+				baos.write(encodedPass);
+
+			}
+			baos.writeTo(fos);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
-		fw.close();
 	}
 
-	private void readData() throws IOException, CryptoException,
-			InvalidKeyException, IllegalBlockSizeException,
-			BadPaddingException, ClassNotFoundException {
-		BufferedReader br = new BufferedReader(new FileReader(FILE_DATA));
-		String username = "";
-		String password = "";
-		String[] accData = new String[2];
-		br.readLine();
-		while (br.ready()) {
-			accData = br.readLine().split(",");
-			accData[0] = accData[0].replace("\n", "").replace("\r", "");
-			accData[1] = accData[1].replace("\n", "").replace("\r", "");
-			username = XOREncryption.encryptDecrypt(accData[0], actualPassword);
-			password = XOREncryption.encryptDecrypt(accData[1], actualPassword);
-			accounts1.add(new Account(username, password));
+	private void readData() throws IOException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException,
+			ClassNotFoundException, NoSuchAlgorithmException, NoSuchProviderException, NoSuchPaddingException,
+			InvalidAlgorithmParameterException {
+		try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(FILE_DATA));) {
+			@SuppressWarnings("unchecked")
+			List<byte[]> bytes = (List<byte[]>) in.readObject();
+			byte[] user = null;
+			byte[] pass = null;
+			for (int i = 1; i < bytes.size(); i += 2) {
+				user = Base64.getDecoder().decode(AES.decrypt(bytes.get(i), actualPassword));
+				pass = Base64.getDecoder().decode(AES.decrypt(bytes.get(i + 1), actualPassword));
+				accounts.add(new Account(user.toString(), pass.toString()));
+			}
+		} catch (IOException e) {
+			System.err.println("Error reading file");
+		} catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException | ClassNotFoundException
+				| InvalidAlgorithmParameterException e) {
+			e.printStackTrace();
 		}
-		br.close();
 	}
 
 	private void register(Stage primaryStage) {
@@ -387,8 +411,7 @@ public class Test extends Application {
 		grid.add(field2, 1, 1);
 		grid.add(pass2, 1, 1);
 
-		Label warning = new Label(
-				"Registering a new password will delete all existing entries.");
+		Label warning = new Label("Registering a new password will delete all existing entries.");
 		warning.setMaxHeight(10);
 		grid.add(warning, 0, 3);
 
@@ -397,12 +420,10 @@ public class Test extends Application {
 		GridPane.setMargin(actiontarget, new Insets(0, 0, 0, 120));
 		Button regBtn = new Button("Register");
 		regBtn.setOnAction((event) -> {
-			System.out.println(pass1.getText());
-			System.out.println(pass2.getText());
 			if (pass1.getText().equals(pass2.getText())) {
 				try {
 					actualPassword = pass1.getText();
-					saveMasterPass(new String(pass1.getText()));
+					saveData(pass1.getText());
 					regStage.close();
 					credentialView();
 				} catch (Exception e) {
@@ -430,45 +451,37 @@ public class Test extends Application {
 		regStage.show();
 	}
 
-	public void saveMasterPass(String pass) throws IOException {
-		FileWriter fw = new FileWriter(FILE_DATA);
-		masterPass = BCrypt.hashpw(pass, BCrypt.gensalt());
-		fw.write(masterPass);
-		fw.write("\n");
-		fw.close();
-	}
-
-	public void confirmation() {
-		Stage confirmationStage = new Stage();
-		GridPane grid = new GridPane();
-		grid.setAlignment(Pos.CENTER);
-		grid.setHgap(2);
-		grid.setVgap(2);
-		grid.setPadding(new Insets(1, 1, 1, 1));
-
-		Label question = new Label(
-				"Are you sure you want to delete this entry?");
-		question.setStyle("-fx-min-width: 90;");
-		Button yesBtn = new Button("Yes");
-		yesBtn.setStyle("-fx-min-width: 90;");
-		yesBtn.setOnAction((event) -> {
-			// confirmed = true;
-			confirmationStage.close();
-		});
-
-		Button noBtn = new Button("No");
-		noBtn.setStyle("-fx-min-width: 90;");
-		noBtn.setOnAction((event) -> {
-			// confirmed = false;
-			confirmationStage.close();
-		});
-		grid.add(question, 0, 0);
-		grid.add(yesBtn, 0, 1);
-		grid.add(noBtn, 1, 1);
-		Scene scene = new Scene(grid, 300, 100);
-		scene.setRoot(grid);
-		confirmationStage.setScene(scene);
-		confirmationStage.show();
-
-	}
+	// private void confirmation() {
+	// Stage confirmationStage = new Stage();
+	// GridPane grid = new GridPane();
+	// grid.setAlignment(Pos.CENTER);
+	// grid.setHgap(2);
+	// grid.setVgap(2);
+	// grid.setPadding(new Insets(1, 1, 1, 1));
+	//
+	// Label question = new Label("Are you sure you want to delete this
+	// entry?");
+	// question.setStyle("-fx-min-width: 90;");
+	// Button yesBtn = new Button("Yes");
+	// yesBtn.setStyle("-fx-min-width: 90;");
+	// yesBtn.setOnAction((event) -> {
+	// // confirmed = true;
+	// confirmationStage.close();
+	// });
+	//
+	// Button noBtn = new Button("No");
+	// noBtn.setStyle("-fx-min-width: 90;");
+	// noBtn.setOnAction((event) -> {
+	// // confirmed = false;
+	// confirmationStage.close();
+	// });
+	// grid.add(question, 0, 0);
+	// grid.add(yesBtn, 0, 1);
+	// grid.add(noBtn, 1, 1);
+	// Scene scene = new Scene(grid, 300, 100);
+	// scene.setRoot(grid);
+	// confirmationStage.setScene(scene);
+	// confirmationStage.show();
+	//
+	// }
 }

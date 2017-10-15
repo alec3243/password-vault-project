@@ -6,7 +6,5 @@
 			<accessrule kind="accessible" pattern="javafx/**"/>
 		</accessrules>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Users/alec3_000/Desktop/org/commons-io-2.4.jar"/>
-	<classpathentry kind="lib" path="C:/Users/alec3_000/Desktop/org/commons-lang3-3.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
