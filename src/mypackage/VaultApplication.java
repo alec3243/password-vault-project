@@ -118,7 +118,7 @@ public class VaultApplication extends Application {
 		if (FILE_DATA.exists()) {
 			grid.add(actiontarget, 1, 6);
 			try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(FILE_DATA))) {
-				// TODO HERES WHERE IT READS MASTERPASS AT LOGIN
+				// TODO HERES WHERE IT HAPPENS
 				masterPass = ((Byte[]) ois.readObject()).toString();
 			} catch (EOFException e) {
 				e.printStackTrace();
@@ -136,11 +136,11 @@ public class VaultApplication extends Application {
 						credentialView();
 					} else {
 						actiontarget.setFill(Color.FIREBRICK);
-						actiontarget.setText("Username or password is wrong");
+						actiontarget.setText("Password is wrong");
 					}
 				} else {
 					actiontarget.setFill(Color.FIREBRICK);
-					actiontarget.setText("Username or password is wrong");
+					actiontarget.setText("Password is wrong");
 				}
 			});
 		} else {
