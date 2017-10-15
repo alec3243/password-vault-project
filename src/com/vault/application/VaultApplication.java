@@ -1,4 +1,4 @@
-package mypackage;
+package com.vault.application;
 
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
@@ -21,9 +21,9 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
-import org.mindrot.jbcrypt.BCrypt;
-
 import com.vault.account.Account;
+import com.vault.encryption.AES;
+import com.vault.jbcrypt.BCrypt;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;

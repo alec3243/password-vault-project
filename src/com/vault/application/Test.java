@@ -1,4 +1,4 @@
-package mypackage;
+package com.vault.application;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -11,9 +11,10 @@ import java.util.ArrayList;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 
-import org.mindrot.jbcrypt.BCrypt;
-
 import com.vault.account.Account;
+import com.vault.encryption.XOREncryption;
+import com.vault.exception.CryptoException;
+import com.vault.jbcrypt.BCrypt;
 
 import javafx.application.Application;
 import javafx.collections.FXCollections;

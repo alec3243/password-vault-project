@@ -1,4 +1,4 @@
-package mypackage;
+package com.vault.encryption;
 
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidAlgorithmParameterException;

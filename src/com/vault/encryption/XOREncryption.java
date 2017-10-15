@@ -1,4 +1,4 @@
-package mypackage;
+package com.vault.encryption;
 
 public class XOREncryption {
 

@@ -1,4 +1,4 @@
-package mypackage;
+package com.vault.exception;
 
 public class CryptoException extends Exception {
 	/**
